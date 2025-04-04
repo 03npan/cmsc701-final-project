@@ -1,0 +1,5 @@
+.mtx file - MTX (matrix market) format
+line 3: [len features] [len barcodes] [len matrix]
+line 4+: [feature] [barcode] [matrix]
+
+.h5 file - "loom" format (HDF5 compression backend)
