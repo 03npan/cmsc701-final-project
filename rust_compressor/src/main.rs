@@ -7,19 +7,37 @@ use rkyv::Archived;
 use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
 
 // first store [# features], [# barcodes], [# entries in this file]
-// these should probably be straight u32s
+// these should probably be u32s
 // next, for each non-zero entry store the following:
 // [row #] [col #] [value]
 // these should be packed ints
 // lg([# features]) and lg([# barcodes]) gives us size of ints used
 // to store those entries - not sure about int size of [value]
-// perhaps we just keep track of the largest [value] seen and store
-// it as well up front?
+// easiest to just store [bits per entry] up front as well
 // note that we will be reading row-major order while the original
 // matrix.mtx is column-major order
 // two ways to do this:
     // 1. store vector of (row, col, value) three-tuples
     // 2. store 3 vectors: one for row, col, and value
+// possible improvements
+    // don't duplicate storing row values (if reading row-major order)
+        // big savings here if all non-zero row values are stored consecutively
+    // store relative col # instead of absolute
+    // values should be delta encoded as well
+    // more compressed three vector format:
+        // row vector stores number of values in row (index is row #)
+        // col vector stores relative col #s within row
+        // value vector stores delta encoded value
+            // packing negatives - fun...
+        // col[i] pairs with value[i]
+        // can also do the same with 1 vector format:
+            // store (# values in row, (col, value), ...) for each row
+            // will need to track row num when reading/decompressing
+    // might be better to track largest entries in row & col vecs and
+    // store # bits needed for each
+        // could get even smaller if each bits used varied per row - painful to work with
+    // huffman encoding? https://www.programminglogic.com/implementing-huffman-coding-in-c/
+        // probably requires the three vector solution
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 struct CompressedMatrix {
@@ -119,6 +137,8 @@ fn main() {
             }
         }
     }
+
+    // println!("{:?}", compressed_matrix.combined_vec);
         
     let bytes = rkyv::to_bytes::<Error>(&compressed_matrix).unwrap();
     let f = File::create("../compressed_matrix");
