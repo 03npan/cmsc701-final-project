@@ -1,0 +1,7 @@
+[package]
+name = "rust_compressor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rkyv = "0.8.10"
