@@ -28,6 +28,7 @@ use itertools::Itertools;
             // https://www.programminglogic.com/implementing-huffman-coding-in-c/
             // will need to store the mapping of bits to numbers
                 // each vec has its own mapping to store
+                // or could combine all values into one giant Huffman tree?
             // can save bits by using fewer bits for common values, provided size
             // of mapping + extra bits used for uncommon values is less than savings
             // https://docs.rs/huffman-coding/latest/huffman_coding/
