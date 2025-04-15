@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 rkyv = "0.8.10"
+itertools = "0.14.0"

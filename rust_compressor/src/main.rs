@@ -5,29 +5,16 @@ use std::io::BufReader;
 use std::io::Write;
 use rkyv::Archived;
 use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
+use itertools::Itertools;
 
-// first store [# features], [# barcodes], [# entries in this file]
-// these should probably be u32s
-// next, for each non-zero entry store the following:
-// [row #] [col #] [value]
-// these should be packed ints
-// lg([# features]) and lg([# barcodes]) gives us size of ints used
-// to store those entries - not sure about int size of [value]
-// easiest to just store [bits per entry] up front as well
 // note that we will be reading row-major order while the original
 // matrix.mtx is column-major order
-// two ways to do this:
-    // 1. store vector of (row, col, value) three-tuples
-    // 2. store 3 vectors: one for row, col, and value
-// possible improvements
-    // don't duplicate storing row values (if reading row-major order)
-        // big savings here if all non-zero row values are stored consecutively
-    // store relative col # instead of absolute
-    // values should be delta encoded as well
+// improvements over just storing vecs of the (row, col, val) three-tuples
+    // --- ESSENTIALLY CSR BUT USING PACKED INTS ---
     // more compressed three vector format:
         // row vector stores number of values in row (index is row #)
         // col vector stores relative col #s within row
-        // value vector stores delta encoded value
+        // value vector stores delta encoded value?
             // packing negatives - fun...
         // col[i] pairs with value[i]
         // can also do the same with 1 vector format:
@@ -36,17 +23,39 @@ use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
     // might be better to track largest entries in row & col vecs and
     // store # bits needed for each
         // could get even smaller if each bits used varied per row - painful to work with
-    // huffman encoding? https://www.programminglogic.com/implementing-huffman-coding-in-c/
-        // probably requires the three vector solution
+    // variable length codings
+        // huffman coding?
+            // https://www.programminglogic.com/implementing-huffman-coding-in-c/
+            // will need to store the mapping of bits to numbers
+                // each vec has its own mapping to store
+            // can save bits by using fewer bits for common values, provided size
+            // of mapping + extra bits used for uncommon values is less than savings
+            // https://docs.rs/huffman-coding/latest/huffman_coding/
+            // https://crates.io/crates/minimum_redundancy
+            // https://crates.io/crates/huffman-compress2
+            // https://crates.io/crates/huff-tree-tap
+            // https://crates.io/crates/simple_huffman
+            // https://crates.io/crates/hfmn
+        // fibonacci coding?
+            // will need to store mapping of numbers to frequency rank
+                // most common int is rank 1, second most common is 2, etc.
+            // encode the rank for a num - when decoding, map rank back to number
+            // very few bits for most common! fibonacci coding of 1 is just 2 bits,
+            // 2 is 3 bits - larger for more uncommon numbers
+            // https://docs.rs/fibonacci_codec/latest/fibonacci_codec/
+            // https://en.wikipedia.org/wiki/Fibonacci_coding
+        // elias universal coding?
+            // https://en.wikipedia.org/wiki/Elias_coding
+            // similar to fibonacci
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 struct CompressedMatrix {
     num_features: u32,
     num_barcodes: u32,
     num_entries: u32,
+    bits_per_row_count: u32,
+    bits_per_col: u32,
     bits_per_value: u32,
-    combined_vec: Vec<u32>,
-    // pick combined OR below three - not both
     row_vec: Vec<u32>,
     col_vec: Vec<u32>,
     values_vec: Vec<u32>,
@@ -54,7 +63,7 @@ struct CompressedMatrix {
 
 fn read_matrix_csv(csv: String) -> Vec<Vec<u32>> {
     let mut matrix:Vec<Vec<u32>> = Vec::new();
-    
+
     let f = File::open(csv);
     let input = match f {
         Ok(f) => f,
@@ -74,6 +83,47 @@ fn read_matrix_csv(csv: String) -> Vec<Vec<u32>> {
     }
 
     return matrix;
+}
+
+fn pack_bits(vec_to_pack: Vec<u32>, mask_bits: u32) -> Vec<u32> {
+    // eprintln!("{}", mask_bits);
+    let bit_mask = (1 << mask_bits) - 1;
+    let mut packed: Vec<u32> = Vec::new();
+    let mut packed_u32 = 0;
+
+    // num bits unprocessed in current byte
+    let mut bits_left_this_pack = 32;
+
+    for v in vec_to_pack {
+        // num bits to be processed for current subchunk
+        let mut bits_left_this_rank = mask_bits;
+        let value = v & bit_mask; // make sure we have the right bits
+        while bits_left_this_rank > 0 {
+            if bits_left_this_pack > bits_left_this_rank {
+                packed_u32 |= value << (bits_left_this_pack - bits_left_this_rank);
+                bits_left_this_pack -= bits_left_this_rank;
+                bits_left_this_rank -= bits_left_this_rank;
+            }
+            else {
+                packed_u32 |= value >> (bits_left_this_rank - bits_left_this_pack);
+                bits_left_this_rank -= bits_left_this_pack;
+                bits_left_this_pack -= bits_left_this_pack;
+            }
+
+            if bits_left_this_pack == 0 {
+                packed.push(packed_u32);
+                packed_u32 = 0;
+                bits_left_this_pack = 32;
+            }
+        }
+    }
+
+    // leftover bits at end that don't form full u32
+    if bits_left_this_pack != 32 {
+        packed.push(packed_u32);
+    }
+
+    packed
 }
 
 fn main() {
@@ -117,8 +167,10 @@ fn main() {
         num_features: matrix.len() as u32,
         num_barcodes: matrix[0].len() as u32,
         num_entries: 0,
+        bits_per_row_count: 0,
+        bits_per_col: 0,
         bits_per_value: 0,
-        combined_vec: Vec::new(),
+        // combined_vec: Vec::new(),
         // pick combined OR below three - not both
         row_vec: Vec::new(),
         col_vec: Vec::new(),
@@ -126,22 +178,63 @@ fn main() {
     };
 
     let mut num_entries = 0;
+    let mut max_row_count = 0;
+    let mut max_col_delta = 0;
     let mut max_value = 0;
+    let mut row_counts: Vec<u32> = Vec::new();
+    let mut cols: Vec<u32> = Vec::new();
+    let mut values: Vec<u32> = Vec::new();
 
-    for (row_num, row) in matrix.iter().enumerate() {
+    // switch to storing (col, value) in hashtable with row as key?
+    for (_row_num, row) in matrix.iter().enumerate() {
+        let mut row_count = 0;
+        let mut last_col = 0;
         for (col_num, value) in row.iter().enumerate() {
             if *value != 0 {
-                compressed_matrix.combined_vec.push(row_num as u32);
-                compressed_matrix.combined_vec.push(col_num as u32);
-                compressed_matrix.combined_vec.push(*value);
+                // relative column nums
+                let col_delta = (col_num - last_col) as u32;
+                if col_delta > max_col_delta {
+                    max_col_delta = col_delta;
+                }
+                cols.push(col_delta);
+                last_col = col_num;
+                values.push(*value);
+                if *value > max_value {
+                    max_value = *value;
+                }
+                num_entries += 1;
+                row_count += 1;
             }
         }
+        if row_count > max_row_count {
+            max_row_count = row_count;
+        }
+        row_counts.push(row_count);
     }
+    println!("max_row_count: {}", max_row_count);
+    println!("max_col_delta: {}", max_col_delta);
+    println!("max_value: {}", max_value); // outlier large values :(
+    println!("len: {}", row_counts.len());
 
-    // println!("{:?}", compressed_matrix.combined_vec);
+    let row_vec_counts = row_counts.iter().counts();
+    let col_vec_counts = cols.iter().counts();
+    let value_vec_counts = values.iter().counts();
+    println!("row_vec_counts: {:?}", row_vec_counts.values().sorted().len());
+    println!("col_vec_counts: {:?}", col_vec_counts.values().sorted().len());
+    println!("value_vec_counts: {:?}", value_vec_counts.values().sorted().len());
+
+    compressed_matrix.num_entries = num_entries;
+    compressed_matrix.bits_per_row_count = (max_row_count as f64).log2().ceil() as u32;
+    compressed_matrix.bits_per_col = (max_col_delta as f64).log2().ceil() as u32;
+    compressed_matrix.bits_per_value = (max_value as f64).log2().ceil() as u32;
+    println!("bits per row, col, value: {}, {}, {}", compressed_matrix.bits_per_row_count, compressed_matrix.bits_per_col, compressed_matrix.bits_per_value);
+
+    compressed_matrix.row_vec = pack_bits(row_counts, compressed_matrix.bits_per_row_count);
+    compressed_matrix.col_vec = pack_bits(cols, compressed_matrix.bits_per_col);
+    compressed_matrix.values_vec = pack_bits(values, compressed_matrix.bits_per_value);
         
     let bytes = rkyv::to_bytes::<Error>(&compressed_matrix).unwrap();
-    let f = File::create("../compressed_matrix");
+    let f = File::create("../compressed_matrix.bin");
     let mut outfile = match f {
         Ok(f) => f,
         Err(_error) => panic!("Can't create file"),
