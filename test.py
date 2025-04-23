@@ -14,7 +14,7 @@ with open(f"{matrix_dir}/barcodes.tsv") as f:
 
 import pandas as pd
 matrix = pd.DataFrame.sparse.from_spmatrix(mat)
-matrix.to_csv("mex_matrix_no_headers.csv", index=False)
+matrix.to_csv("mex_matrix_no_headers.csv", index=False, header=False)
 matrix.columns = barcodes
 matrix.insert(loc=0, column="feature_id", value=feature_ids)
 matrix.insert(loc=0, column="gene", value=gene_names)
@@ -23,4 +23,4 @@ matrix.insert(loc=0, column="feature_type", value=feature_types)
 # display matrix
 # print(matrix)
 # save the table as a CSV (note the CSV will be a very large file)
-matrix.to_csv("mex_matrix.csv", index=False)
+# matrix.to_csv("mex_matrix.csv", index=False)
