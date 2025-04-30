@@ -1,0 +1,91 @@
+all units are MB
+
+test1:
+    matrix.mtx.gz (original): 5.68
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 3.66
+    h5: 2.54
+    csc: 3.45
+    csc + gz: 3.42
+    csr: 2.24
+    csr + gz: 2.21
+    h5ad: 13.9
+    h5ad + gz: 2.24
+    loom: 5.94
+    loom + gz: 4.91
+    ours: (add 0.33 for gzipped barcodes + features since h5 has those)
+        modified CSR: 1.39
+        modified CSR + gz: 1.21
+        bitvector indices: 1.46
+        bitvector indices + gz: 1.19
+
+test2:
+    matrix.mtx.gz (original): 15.8
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 10.4
+    h5: 6.66
+    csc: 9.14
+    csc + gz: 9.08
+    csr: 8.29
+    csr + gz: 8.24
+    h5ad: 34.3
+    h5ad + gz: 7.41
+    loom: 25.7
+    loom + gz: 21.4
+    ours: (add 0.37 for gzipped barcodes + features since h5 has those)
+        modified CSR: 5.00
+        modified CSR + gz: 4.42
+        bitvector indices: 7.41
+        bitvector indices + gz: 4.61
+
+test3:
+    matrix.mtx.gz (original): 147.9
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 97.3
+    h5: 56.8
+    csc: 89.7
+    csc + gz: 89.0
+    csr: 89.9
+    csr + gz: 85.7
+    h5ad: 317.1
+    h5ad + gz: 71.8
+    loom: 119.5
+    loom + gz: 114.6
+    ours: (add 0.38 for gzipped barcodes + features since h5 has those)
+        modified CSR: 34.6
+        modified CSR + gz: 29.8
+        bitvector indices: 35.7
+        bitvector indices + gz: 29.1
+
+test4:
+    matrix.mtx.gz (original): 315.2
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 206.8
+    h5: 120.5
+    csc: 192.0
+    csc + gz: 186.6
+    csr: 186.8
+    csr + gz: 181.7
+    h5ad: 684.0
+    h5ad + gz: 150.6
+    loom: 268.4
+    loom + gz: 255.0
+    ours: (add 0.76 for gzipped barcodes + features since h5 has those)
+        modified CSR: 84.2
+        modified CSR + gz: 73.3
+        bitvector indices: 91.1
+        bitvector indices + gz: 72.7
+
+test5:
+    matrix.mtx.gz (original): 648.9
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 648.9
+    h5: 284.1
+    csc: 391.9
+    csc + gz: 386.8
+    csr: 565.8
+    csr + gz: 322.5
+    h5ad: 2329.1
+    h5ad + gz: 537.2 
+    loom: 471.7
+    loom + gz: 452.5
+    ours: (add 2.79 for gzipped barcodes + features since h5 has those)
+        modified CSR: 213.9
+        modified CSR + gz: 171.1
+        bitvector indices: 201.2
+        bitvector indices + gz: 167.6

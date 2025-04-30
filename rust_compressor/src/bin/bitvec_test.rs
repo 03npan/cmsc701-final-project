@@ -1,19 +1,15 @@
-use std::env;
-use std::fs;
+use std::{env, fs};
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Write;
-use rkyv::Archived;
-// use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
-use rkyv::rancor::Error;
 use itertools::Itertools;
-use minimum_redundancy::{Coding, DecodingResult, BitsPerFragment}; //, Code};
-use huffman_compress2::{CodeBuilder, Tree}; //, Book};
+use minimum_redundancy::{Coding, BitsPerFragment};
+// use huffman_compress2::{CodeBuilder, Tree};
 use serde::{Serialize, Deserialize};
 use bit_vec::BitVec;
 use bitfield_rle;
+use matrix_market_rs::MtxData;
 
+// read mtx file natively in rust
+// https://crates.io/crates/matrix-market-rs
 // note that we will be reading row-major order while the original
 // matrix.mtx is column-major order
 // NOTE: we are using dense matrix but should be using sparse as input
@@ -51,11 +47,8 @@ struct CompressedMatrix {
     num_features: u32,
     num_barcodes: u32,
     num_entries: u32,
-    // matrix: Vec<Vec<u8>>, // rle, split by row
     matrix: Vec<u8>, // rle, 1D array
     // matrix: BitVec, // rle + huffman, 1D array
-    // matrix: Vec<BitVec>, // rle + huffman, split by row
-    // values: Vec<BitVec>, // split by row
     values: BitVec, // 1D array
     // tree: Tree<u32>, // if using combined tree
     // --------- for huffman-compress2 ---------
@@ -68,71 +61,42 @@ struct CompressedMatrix {
     value_coding_node_count: Box<[u32]>,
 }
 
-fn read_matrix_csv(csv: String) -> Vec<Vec<u32>> {
-    let mut matrix:Vec<Vec<u32>> = Vec::new();
-
-    let f = File::open(csv);
-    let input = match f {
-        Ok(f) => f,
+fn read_matrix_mtx(mtx: String) -> ([usize; 2], Vec<[usize; 2]>, Vec<u32>) {
+    let res = MtxData::from_file(mtx);
+    let sparse = match res {
+        Ok(res) => res,
         Err(error) => panic!("Can't open file: {}", error),
     };
-    let reader = BufReader::new(input);
+    if let MtxData::Sparse(size, coordinates, values, _) = sparse {
 
-    for line in reader.lines().map(|l| l.unwrap()) {
-        let mut row: Vec<u32> = Vec::new();
-        let collection: Vec<&str> = line.split(",").collect();
-        // let row_elems = &collection[3..];
-        // eprintln!("{:?}", row_elems);
-        for elem in collection {
-            row.push(elem.parse::<u32>().unwrap());
-        }
-        matrix.push(row);
+        let mut combined: Vec<([usize; 2], u32)> = coordinates.into_iter().zip(values.into_iter()).collect();
+
+        // sort into row-major order
+        combined.sort_by(|a, b| a.0[0].cmp(&b.0[0]).then(a.0[1].cmp(&b.0[1])));
+
+        let (coordinates_sorted, values_sorted): (Vec<_>, Vec<_>) = combined.into_iter().unzip();
+
+        println!("{:?}", coordinates_sorted.len());
+        println!("{:?}", values_sorted.len());
+
+        return (size, coordinates_sorted, values_sorted);
     }
-
-    return matrix;
+    else {
+        panic!("Not sparse mtx file (maybe is dense file???)");
+    }
 }
 
 fn main() {
-    let matrix:Vec<Vec<u32>>;
     let arg1 = env::args().nth(1);
-    if arg1.is_some() {
-        let arg2 = env::args().nth(2);
-        if arg2.is_some() {
-            matrix = read_matrix_csv("../mex_matrix_no_headers.csv".to_string());
-        
-            println!("# features: {}", matrix.len());
-            println!("# barcodes:  {}", matrix[0].len());
-            
-            let bytes = rkyv::to_bytes::<Error>(&matrix).unwrap();
-            let f = File::create("../sparse_mtx");
-            let mut outfile = match f {
-                Ok(f) => f,
-                Err(error) => panic!("Can't create file: {}", error),
-            };
-            // write bytes to disk
-            let res = outfile.write_all(&bytes);
-            let _ = match res {
-                Ok(res) => res,
-                Err(error) => panic!("Can't write to file: {}", error),
-            };
-        }
-        else {
-            let f = fs::read("../sparse_mtx");
-            let binary = match f {
-                Ok(f) => f,
-                Err(error) => panic!("Can't open file: {}", error),
-            };
-            let archived = rkyv::access::<Archived<Vec<Vec<u32>>>, Error>(&binary[..]).unwrap();
-        
-            matrix =  rkyv::deserialize::<Vec<Vec<u32>>, Error>(archived).unwrap();
-        
-            println!("# features: {}", matrix.len());
-            println!("# barcodes:  {}", matrix[0].len());
-        }
+    let arg2 = env::args().nth(2);
+    if arg1.is_some() && arg2.is_some() {
+        let (size, coordinates, mtx_values) = read_matrix_mtx(arg1.unwrap());
+        println!("# features: {}", size[0]);
+        println!("# barcodes:  {}", size[1]);
+        let num_entries = coordinates.len();
 
         // now we have a sparse NxM matrix loaded - begin compressing
 
-        let mut num_entries: u32 = 0;
         let mut max_value = 0;
         // let mut max_value_delta = 0;
         // let mut rows: Vec<Vec<u32>> = Vec::new();
@@ -141,47 +105,31 @@ fn main() {
         let mut values: Vec<u32> = Vec::new();
         // let mut last_value = 0;
 
-        let mut max_gap = 0;
-        let mut curr_gap = 0;
+        for idx in 0..num_entries {
+            let row = coordinates[idx][0];
+            let col = coordinates[idx][1];
+            let value = mtx_values[idx];
 
-        for (_row_num, row) in matrix.iter().enumerate() {
-            // let mut col_indices = Vec::new();
-            // let mut values_in_row = Vec::new();
-            // let mut last_col = 0;
-            for (col_num, value) in row.iter().enumerate() {
-                if *value != 0 {
-                    cols.push((col_num + (_row_num * matrix[0].len())) as u32);
-                    // col_indices.push(col_num as u32);
-                    // last_col = col_num;
-                    // last_col = col_num + (_row_num * compressed_matrix.num_barcodes as usize); // for 2-array alg
-                    // values_in_row.push(*value);
-                    values.push(*value);
-                    if *value > max_value {
-                        max_value = *value;
-                    }
-                    // let value_delta = *value as i32 - last_value as i32;
-                    // values.push(value_delta);
-                    // if value_delta > max_value_delta {
-                    //     max_value_delta = value_delta;
-                    // }
-                    // last_value = *value;
-                    num_entries += 1;
-                    if curr_gap > max_gap {
-                        max_gap = curr_gap;
-                        curr_gap = 0;
-                    }
-                }
-                else {
-                    curr_gap += 1;
-                }
+            cols.push((col + (row * size[1])) as u32);
+            // col_indices.push(col_num as u32);
+            // last_col = col_num;
+            // last_col = col_num + (_row_num * compressed_matrix.num_barcodes as usize); // for 2-array alg
+            // values_in_row.push(*value);
+            values.push(value);
+            if value > max_value {
+                max_value = value;
             }
-            // rows.push(col_indices);
-            // values.push(values_in_row);
+            // let value_delta = *value as i32 - last_value as i32;
+            // values.push(value_delta);
+            // if value_delta > max_value_delta {
+            //     max_value_delta = value_delta;
+            // }
+            // last_value = *value;
         }
+
         println!("max_value: {}", max_value);
         // println!("len col: {}", cols.len());
         // println!("len val: {}", values.len());
-        println!("max_gap: {}", max_gap);
 
         // let value_counts = values.clone().into_iter().flatten().collect_vec().iter().copied().counts();
         let value_counts = values.iter().copied().counts();
@@ -193,57 +141,21 @@ fn main() {
         // --------- coding for huffman-compress2 ---------
         // let (values_book, values_tree) = CodeBuilder::from_iter(value_counts).finish();
 
-        // --------- split by row ---------
-        // let mut values_bitvectors: Vec<BitVec> = Vec::new();
-        // for value in &values {
-        //     let mut value_buffer = BitVec::new();
-        //     for v in value {
-        //         let _ = values_book.encode(&mut value_buffer, v);
-        //     }
-        //     values_bitvectors.push(value_buffer);
-        // }
-
-        // --------- 1D matrix ---------
         // let mut value_buffer = BitVec::new();
         // for v in &values {
         //     let _ = values_book.encode(&mut value_buffer, v);
         // }
-
-        // --------- split by row ---------
-        // let mut matrix_rle_bitvecs: Vec<Vec<u8>> = Vec::new();
-        // for row in rows {
-        //     let mut bitvec = BitVec::from_elem(matrix[0].len(), false);
-        //     for c in row {
-        //         bitvec.set(c as usize, true);
-        //     }
-        //     let rle_bitvec = bitfield_rle::encode(bitvec.to_bytes());
-        //     // let bitvec_bytes = bitvec.to_bytes();
-        //     matrix_rle_bitvecs.push(rle_bitvec);
-        // }
-
-        // --------- 1D matrix ---------
-        // let mut bitvec = BitVec::from_elem(matrix.len() * matrix[0].len(), false);
+        
+        // let mut bitvec = BitVec::from_elem(size[0] * size[1], false);
         // for c in cols {
         //     bitvec.set(c as usize, true);
         // }
         // let rle_cols = bitfield_rle::encode(bitvec.to_bytes());
 
         // --------- huffman-compress2 on rle matrix ---------
-        // let rle_counts = matrix_rle_bitvecs.clone().into_iter().flatten().collect_vec().iter().copied().counts();
         // let rle_counts = rle_cols.iter().copied().counts();
         // let (matrix_book, matrix_tree) = CodeBuilder::from_iter(rle_counts).finish();
 
-        // --------- split by row ---------
-        // let mut matrix_bitvectors: Vec<BitVec> = Vec::new();
-        // for row in matrix_rle_bitvecs {
-        //     let mut matrix_buffer = BitVec::new();
-        //     for c in row {
-        //         let _ = matrix_book.encode(&mut matrix_buffer, &c);
-        //     }
-        //     matrix_bitvectors.push(matrix_buffer);
-        // }
-
-        // --------- 1D matrix ---------
         // let mut matrix_buffer = BitVec::new();
         // for byte in rle_cols {
         //     let _ = matrix_book.encode(&mut matrix_buffer, &byte);
@@ -253,22 +165,6 @@ fn main() {
         let value_coding = Coding::from_frequencies(BitsPerFragment(1), value_counts);
         let values_book = value_coding.reversed_codes_for_values();
 
-        // --------- split by row ---------
-        // let mut values_bitvectors: Vec<BitVec> = Vec::new();
-        // for value in &values {
-        //     let mut value_buffer = BitVec::new();
-        //     for v in value {
-        //         let code = values_book.get(v).unwrap();
-        //         let mut bits = code.content;
-        //         for _ in 0..code.len {
-        //             value_buffer.push((bits & 1) == 1);
-        //             bits >>= 1;
-        //         }
-        //     }
-        //     values_bitvectors.push(value_buffer);
-        // }
-
-        // --------- 1D matrix ---------
         let mut value_buffer = BitVec::new();
         for v in &values {
             let code = values_book.get(v).unwrap();
@@ -278,47 +174,18 @@ fn main() {
                 bits >>= 1;
             }
         }
-
-        // --------- split by row ---------
-        // let mut matrix_rle_bitvecs: Vec<Vec<u8>> = Vec::new();
-        // for row in rows {
-        //     let mut bitvec = BitVec::from_elem(matrix[0].len(), false);
-        //     for c in row {
-        //         bitvec.set(c as usize, true);
-        //     }
-        //     let bitvec_bytes = bitvec.to_bytes();
-        //     matrix_rle_bitvecs.push(bitvec_bytes);
-        // }
         
-        // --------- 1D matrix ---------
-        let mut bitvec = BitVec::from_elem(matrix.len() * matrix[0].len(), false);
+        let mut bitvec = BitVec::from_elem(size[0] * size[1], false);
         for c in cols {
             bitvec.set(c as usize, true);
         }
         let rle_cols = bitfield_rle::encode(bitvec.to_bytes());
 
         // --------- minimum_redundancy on rle matrix ---------
-        // let rle_counts = matrix_rle_bitvecs.clone().into_iter().flatten().collect_vec().iter().copied().counts();
-        // // let rle_counts = rle_cols.iter().copied().counts();
+        // let rle_counts = rle_cols.iter().copied().counts();
         // let matrix_coding = Coding::from_frequencies(BitsPerFragment(1), rle_counts);
         // let matrix_book = matrix_coding.reversed_codes_for_values();
-        
-        // --------- split by row ---------
-        // let mut matrix_bitvectors: Vec<BitVec> = Vec::new();
-        // for row in matrix_rle_bitvecs {
-        //     let mut matrix_buffer = BitVec::new();
-        //     for c in row {
-        //         let code = matrix_book.get(&c).unwrap();
-        //         let mut bits = code.content;
-        //         for _ in 0..code.len {
-        //             matrix_buffer.push((bits & 1) == 1);
-        //             bits >>= 1;
-        //         }
-        //     }
-        //     matrix_bitvectors.push(matrix_buffer);
-        // }
 
-        // --------- 1D matrix ---------
         // let mut matrix_buffer = BitVec::new();
         // for byte in rle_cols {
         //     let code = matrix_book.get(&byte).unwrap();
@@ -330,14 +197,11 @@ fn main() {
         // }
 
         let compressed_matrix = CompressedMatrix {
-            num_features: matrix.len() as u32,
-            num_barcodes: matrix[0].len() as u32,
-            num_entries: num_entries,
-            // matrix: matrix_rle_bitvecs, // rle, split by row
+            num_features: size[0] as u32,
+            num_barcodes: size[1] as u32,
+            num_entries: num_entries as u32,
             matrix: rle_cols, // rle only, 1D array
             // matrix: matrix_buffer, // rle + huffman, 1D array
-            // matrix: matrix_bitvectors, // rle + huffman, split by row
-            // values: values_bitvectors, // rle, split by row
             values: value_buffer, // rle, 1D array
             // tree: tree, // for combined case
             // --------- for huffman-compress2 ---------
@@ -350,7 +214,9 @@ fn main() {
             value_coding_node_count: value_coding.internal_nodes_count,
         };
 
-        let f = File::create("../compressed_matrix2.bin");
+        let output_dir = arg2.unwrap();
+        let _ = fs::create_dir(&output_dir);
+        let f = File::create(format!("{output_dir}/compressed_matrix_bv.bin"));
         let mut outfile = match f {
             Ok(f) => f,
             Err(error) => panic!("Can't create file: {}", error),
@@ -361,7 +227,7 @@ fn main() {
             Err(error) => panic!("Can't write to file: {}", error),
         };
 
-        let f = File::open("../compressed_matrix2.bin");
+        let f = File::open(format!("{output_dir}/compressed_matrix_bv.bin"));
         let mut input = match f {
             Ok(f) => f,
             Err(error) => panic!("Can't open file: {}", error),
@@ -380,16 +246,22 @@ fn main() {
         
         // --------- test for huffman-compress2 ---------
         // // let rle_row: Vec<u8> = compressed_matrix2.matrix_tree.decoder(&compressed_matrix2.matrix, 4 * compressed_matrix.num_barcodes as usize).collect();
-        // // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values[3], compressed_matrix.num_barcodes as usize).collect();
         // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values, compressed_matrix.num_entries as usize).collect();
-        // // let decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix[3]).unwrap(); // decode for split by row rle
         // // let mut decoded_row = bitfield_rle::decode(rle_row).unwrap(); // decode for rle + huffman of 1D array
         // let mut decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix).unwrap();
         // let bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
         // // for byte in decoded_row
+        // let mut ones = 0;
         // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
-        //     print!("{:08b}", byte); // should return three 1s
+        //     ones += byte.count_ones();
+        //     // print!("{:08b}", byte);
         // }
+        // // should return 3 for test1
+        // // should return 125 for test2
+        // // should return 111 for test3
+        // // should return 54  for test4
+        // // should return 28605 for test5
+        // println!("{}", ones);
         // assert_eq!(values, decoded_values); // decoded_values should be either num_barcodes or num_entries if doing split by row or 1D array
         
         // --------- test for minimum_redundancy ---------
@@ -400,17 +272,7 @@ fn main() {
         // };
         // let mut bytes = Vec::new();
         // let mut row_decoder = row_coding2.decoder();
-        // // let mut fragments = compressed_matrix2.matrix[3].iter().peekable();
-        // // while fragments.peek().is_some() {
-        // //     if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
-        // //         bytes.push(*v);
-        // //     }
-        // // }
-        // // let decoded_row = bitfield_rle::decode(bytes).unwrap();
-        // // for byte in decoded_row {
-        // //     print!("{:08b}", byte); // should return three 1s
-        // // }
-        // let mut fragments: std::iter::Peekable<std::slice::Iter<'_, BitVec>> = compressed_matrix2.matrix.iter().peekable();
+        // let mut fragments = compressed_matrix2.matrix.iter().peekable();
         // let mut count = 0;
         // while fragments.peek().is_some() {
         //     if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
@@ -422,35 +284,35 @@ fn main() {
         //     }
         // }
         // let mut decoded_row = bitfield_rle::decode(bytes).unwrap();
+        // let mut ones = 0;
         // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
-        //     print!("{:08b}", byte); // should return three 1s
+        //     ones += byte.count_ones();
+        //     // print!("{:08b}", byte);
         // }
+        // // should return 3 for test1
+        // // should return 125 for test2
+        // // should return 111 for test3
+        // // should return 54  for test4
+        // // should return 28605 for test5
+        // println!("{}", ones);
 
         // --------- rle only ---------
         let mut decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix).unwrap();
-        let bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
+        let _bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
         // for byte in decoded_row
+        let mut ones = 0;
         for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
-            print!("{:08b}", byte); // should return three 1s
+            ones += byte.count_ones();
+            // print!("{:08b}", byte);
         }
+        // should return 3 for test1
+        // should return 125 for test2
+        // should return 111 for test3
+        // should return 54  for test4
+        // should return 28605 for test5
+        println!("{}", ones);
     }
     else {
-        let f = File::open("../compressed_matrix.bin");
-        let mut input = match f {
-            Ok(f) => f,
-            Err(error) => panic!("Can't open file: {}", error),
-        };
-        let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
-        let compressed_matrix = match res {
-            Ok(res) => res,
-            Err(error) => panic!("Can't decode file: {}", error),
-        };
-        // println!("{:?}", compressed_matrix);
-        // let decoded: Vec<u32> = compressed_matrix.matrix_tree.decoder(&compressed_matrix.row_vec, compressed_matrix.num_features as usize).collect();
-        // these tests are specific to our file
-        // assert_eq!(0, decoded[0]);
-        // assert_eq!(0, decoded[1]);
-        // assert_eq!(0, decoded[2]);
-        // assert_eq!(3, decoded[3]);
+        eprintln!("Usage: rust_compressor <input_mtx> <output>");
     }
 }

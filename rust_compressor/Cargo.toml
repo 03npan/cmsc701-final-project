@@ -12,3 +12,4 @@ serde = { version = "1.0.219", features = ["derive"] }
 bit-vec = { version = "0.8.0", features = ["serde"] }
 bincode = { version = "2.0.0", features = ["serde"] }
 bitfield-rle = "0.2.1"
+matrix-market-rs = "0.1.3"

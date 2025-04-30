@@ -1,21 +1,16 @@
-use std::env;
-use std::fs;
+use std::{env, fs};
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Write;
-use rkyv::Archived;
-// use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
-use rkyv::rancor::Error;
 use itertools::Itertools;
-use minimum_redundancy::{Coding, DecodingResult, BitsPerFragment}; //, Code};
-use huffman_compress2::{CodeBuilder, Tree}; //, Book};
+use minimum_redundancy::{Coding, DecodingResult, BitsPerFragment};
+// use huffman_compress2::{CodeBuilder, Tree};
 use serde::{Serialize, Deserialize};
 use bit_vec::BitVec;
+use matrix_market_rs::MtxData;
 
-// note that we will be reading row-major order while the original
+// read mtx file natively in rust
+// https://crates.io/crates/matrix-market-rs
+// note that we process/store in row-major order while the original
 // matrix.mtx is column-major order
-// NOTE: we are using dense matrix but should be using sparse as input
 // improvements over just storing vecs of the (row, col, val) three-tuples
     // --- ESSENTIALLY CSR BUT USING PACKED INTS ---
     // more compressed three vector format:
@@ -35,6 +30,7 @@ use bit_vec::BitVec;
                 // https://crates.io/crates/minimum_redundancy
                     // 1.39 mb for CSR
                     // 1.41 mb for 1D array
+                    // smaller on all datasets tested so far
                 // https://crates.io/crates/huffman-compress2
                     // 1.43 mb for CSR
                     // 1.47 mb for 1D array
@@ -62,71 +58,42 @@ struct CompressedMatrix {
     value_coding_node_count: Box<[u32]>,
 }
 
-fn read_matrix_csv(csv: String) -> Vec<Vec<u32>> {
-    let mut matrix:Vec<Vec<u32>> = Vec::new();
-
-    let f = File::open(csv);
-    let input = match f {
-        Ok(f) => f,
+fn read_matrix_mtx(mtx: String) -> ([usize; 2], Vec<[usize; 2]>, Vec<u32>) {
+    let res = MtxData::from_file(mtx);
+    let sparse = match res {
+        Ok(res) => res,
         Err(error) => panic!("Can't open file: {}", error),
     };
-    let reader = BufReader::new(input);
+    if let MtxData::Sparse(size, coordinates, values, _) = sparse {
 
-    for line in reader.lines().map(|l| l.unwrap()) {
-        let mut row: Vec<u32> = Vec::new();
-        let collection: Vec<&str> = line.split(",").collect();
-        // let row_elems = &collection[3..];
-        // eprintln!("{:?}", row_elems);
-        for elem in collection {
-            row.push(elem.parse::<u32>().unwrap());
-        }
-        matrix.push(row);
+        let mut combined: Vec<([usize; 2], u32)> = coordinates.into_iter().zip(values.into_iter()).collect();
+
+        // sort into row-major order
+        combined.sort_by(|a, b| a.0[0].cmp(&b.0[0]).then(a.0[1].cmp(&b.0[1])));
+
+        let (coordinates_sorted, values_sorted): (Vec<_>, Vec<_>) = combined.into_iter().unzip();
+
+        println!("{:?}", coordinates_sorted.len());
+        println!("{:?}", values_sorted.len());
+
+        return (size, coordinates_sorted, values_sorted);
     }
-
-    return matrix;
+    else {
+        panic!("Not sparse mtx file (maybe is dense file???)");
+    }
 }
 
 fn main() {
-    let matrix:Vec<Vec<u32>>;
     let arg1 = env::args().nth(1);
-    if arg1.is_some() {
-        let arg2 = env::args().nth(2);
-        if arg2.is_some() {
-            matrix = read_matrix_csv("../mex_matrix_no_headers.csv".to_string());
-        
-            println!("# features: {}", matrix.len());
-            println!("# barcodes:  {}", matrix[0].len());
-            
-            let bytes = rkyv::to_bytes::<Error>(&matrix).unwrap();
-            let f = File::create("../sparse_mtx");
-            let mut outfile = match f {
-                Ok(f) => f,
-                Err(error) => panic!("Can't create file: {}", error),
-            };
-            // write bytes to disk
-            let res = outfile.write_all(&bytes);
-            let _ = match res {
-                Ok(res) => res,
-                Err(error) => panic!("Can't write to file: {}", error),
-            };
-        }
-        else {
-            let f = fs::read("../sparse_mtx");
-            let binary = match f {
-                Ok(f) => f,
-                Err(error) => panic!("Can't open file: {}", error),
-            };
-            let archived = rkyv::access::<Archived<Vec<Vec<u32>>>, Error>(&binary[..]).unwrap();
-        
-            matrix =  rkyv::deserialize::<Vec<Vec<u32>>, Error>(archived).unwrap();
-        
-            println!("# features: {}", matrix.len());
-            println!("# barcodes:  {}", matrix[0].len());
-        }
+    let arg2 = env::args().nth(2);
+    if arg1.is_some() && arg2.is_some() {
+        let (size, coordinates, mtx_values) = read_matrix_mtx(arg1.unwrap());
+        println!("# features: {}", size[0]);
+        println!("# barcodes:  {}", size[1]);
+        let num_entries = coordinates.len();
 
         // now we have a sparse NxM matrix loaded - begin compressing
 
-        let mut num_entries = 0;
         let mut max_row_count = 0;
         let mut max_col_delta = 0;
         let mut max_value = 0;
@@ -140,64 +107,69 @@ fn main() {
         // let mut last_col = 0;
         // let mut last_value = 0;
 
-        let mut max_gap = 0;
-        let mut curr_gap = 0;
         // let mut last_col = 0; // for 2-array alg - seems pretty close to 3-array alg
 
-        for (_row_num, row) in matrix.iter().enumerate() {
-            let mut row_count = 0;
-            let mut last_col = 0;
-            for (col_num, value) in row.iter().enumerate() {
-                if *value != 0 {
-                    // relative column nums - seems to be only delta encoding that has significant benefits
-                    // let col_delta = ((col_num + (_row_num * matrix[0].len() as usize)) - last_col) as u32;  // for 2-array alg
-                    // let col_delta = col_num as i32 - last_col as i32; // if not resetting per row
-                    let col_delta = col_num - last_col;
-                    if col_delta > max_col_delta {
-                        max_col_delta = col_delta;
+        let mut row_count = 0;
+        let mut last_row: i32 = -1;
+        let mut last_col = 0;
+        for idx in 0..num_entries {
+            let row = coordinates[idx][0];
+            let col = coordinates[idx][1];
+            let value = mtx_values[idx];
+
+            if row as i32 != last_row {
+                if row_count != 0 {
+                    if row_count > max_row_count {
+                        max_row_count = row_count;
                     }
-                    cols.push(col_delta as u32);
-                    last_col = col_num;
-                    // last_col = col_num + (_row_num * matrix[0].len() as usize); // for 2-array alg
-                    values.push(*value);
-                    if *value > max_value {
-                        max_value = *value;
-                    }
-                    // let value_delta = *value as i32 - last_value as i32;
-                    // values.push(value_delta);
-                    // if value_delta > max_value_delta {
-                    //     max_value_delta = value_delta;
+                    row_counts.push(row_count);
+                    // let row_delta = row_count - last_row_count;
+                    // if row_delta > max_row_count_delta {
+                    //     max_row_count_delta = row_delta;
                     // }
-                    // last_value = *value;
-                    num_entries += 1;
-                    row_count += 1;
-                    if curr_gap > max_gap {
-                        max_gap = curr_gap;
-                        curr_gap = 0;
-                    }
+                    // row_counts.push(row_delta);
+                    // last_row_count = row_count
                 }
-                else {
-                    curr_gap += 1;
+                let num_empty_rows_between = row as i32 - last_row - 1;
+                for _ in 0..num_empty_rows_between {
+                    row_counts.push(0); // account for empty rows
                 }
+                last_row = row as i32;
+                row_count = 1;
+                last_col = 0;
             }
-            if row_count > max_row_count {
-                max_row_count = row_count;
+            else {
+                row_count += 1;
             }
-            row_counts.push(row_count);
-            // let row_delta = row_count - last_row_count;
-            // if row_delta > max_row_count_delta {
-            //     max_row_count_delta = row_delta;
+
+            // relative column nums - seems to be only delta encoding that has significant benefits
+            // let col_delta = ((col_num + (_row_num * matrix[0].len() as usize)) - last_col) as u32;  // for 2-array alg
+            // let col_delta = col_num as i32 - last_col as i32; // if not resetting per row
+            let col_delta = col - last_col;
+            if col_delta > max_col_delta {
+                max_col_delta = col_delta;
+            }
+            cols.push(col_delta as u32);
+            last_col = col;
+            // last_col = col_num + (_row_num * matrix[0].len() as usize); // for 2-array alg
+            values.push(value);
+            if value > max_value {
+                max_value = value;
+            }
+            // let value_delta = value as i32 - last_value as i32;
+            // values.push(value_delta);
+            // if value_delta > max_value_delta {
+            //     max_value_delta = value_delta;
             // }
-            // row_counts.push(row_delta);
-            // last_row_count = row_count
+            // last_value = value;
         }
+
         println!("max_row_count: {}", max_row_count);
         println!("max_col_delta: {}", max_col_delta);
         println!("max_value: {}", max_value);
         println!("len row: {}", row_counts.len());
         // println!("len col: {}", cols.len());
         // println!("len val: {}", values.len());
-        println!("max_gap: {}", max_gap);
 
         let row_vec_counts = row_counts.iter().copied().counts();
         let col_vec_counts = cols.iter().copied().counts();
@@ -275,9 +247,9 @@ fn main() {
         }
 
         let compressed_matrix = CompressedMatrix {
-            num_features: matrix.len() as u32,
-            num_barcodes: matrix[0].len() as u32,
-            num_entries: num_entries,
+            num_features: size[0] as u32,
+            num_barcodes: size[1] as u32,
+            num_entries: num_entries as u32,
             row_vec: row_buffer,
             col_vec: col_buffer,
             values_vec: value_buffer,
@@ -295,7 +267,9 @@ fn main() {
             value_coding_node_count: value_coding.internal_nodes_count,
         };
 
-        let f = File::create("../compressed_matrix.bin");
+        let output_dir = arg2.unwrap();
+        let _ = fs::create_dir(&output_dir);
+        let f = File::create(format!("{output_dir}/compressed_matrix.bin"));
         let mut outfile = match f {
             Ok(f) => f,
             Err(error) => panic!("Can't create file: {}", error),
@@ -306,7 +280,7 @@ fn main() {
             Err(error) => panic!("Can't write to file: {}", error),
         };
 
-        let f = File::open("../compressed_matrix.bin");
+        let f = File::open(format!("{output_dir}/compressed_matrix.bin"));
         let mut input = match f {
             Ok(f) => f,
             Err(error) => panic!("Can't open file: {}", error),
@@ -343,28 +317,17 @@ fn main() {
         let mut fragments = compressed_matrix2.row_vec.iter();// as bit_vec::Iter<u32>;
         while num_decoded < 4 {
             if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
-                println!("{}", v); // should return 0,0,0,3 for our file
+                // should return 0,0,0,3 for test1
+                // should return 0,0,0,125 for test2
+                // should return 0,1,0,111 for test3
+                // should return 1,0,0,54 for test4
+                // should return 32525,264107,63667,28605 for test5
+                println!("{}", v);
                 num_decoded += 1;
             }
         }
     }
     else {
-        let f = File::open("../compressed_matrix.bin");
-        let mut input = match f {
-            Ok(f) => f,
-            Err(error) => panic!("Can't open file: {}", error),
-        };
-        let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
-        let compressed_matrix = match res {
-            Ok(res) => res,
-            Err(error) => panic!("Can't decode file: {}", error),
-        };
-        // println!("{:?}", compressed_matrix);
-        // let decoded: Vec<u32> = compressed_matrix.row_tree.decoder(&compressed_matrix.row_vec, compressed_matrix.num_features as usize).collect();
-        // these tests are specific to our file
-        // assert_eq!(0, decoded[0]);
-        // assert_eq!(0, decoded[1]);
-        // assert_eq!(0, decoded[2]);
-        // assert_eq!(3, decoded[3]);
+        eprintln!("Usage: rust_compressor <input_mtx> <output_dir>");
     }
 }
