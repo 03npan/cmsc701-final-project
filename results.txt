@@ -15,6 +15,8 @@ test1: https://www.10xgenomics.com/datasets/500-human-pbm-cs-3-lt-v-3-1-chromium
     ours: (add 0.33 for gzipped barcodes + features since h5 has those)
         modified CSR: 1.39
         modified CSR + gz: 1.21
+        modified CSR, Huffman on combined: 1.42
+        modified CSR, Huffman on combined + gz: 1.23
         bitvector indices: 1.46
         bitvector indices + gz: 1.19
 
@@ -33,6 +35,8 @@ test2: https://www.10xgenomics.com/datasets/whole-blood-rbc-lysis-for-pbmcs-neut
     ours: (add 0.37 for gzipped barcodes + features since h5 has those)
         modified CSR: 5.00
         modified CSR + gz: 4.42
+        modified CSR, Huffman on combined: 5.43
+        modified CSR, Huffman on combined + gz: 4.67
         bitvector indices: 7.41
         bitvector indices + gz: 4.61
 
@@ -51,6 +55,8 @@ test3: https://www.10xgenomics.com/datasets/10k-human-pbmcs-3-v3-1-chromium-x-wi
     ours: (add 0.38 for gzipped barcodes + features since h5 has those)
         modified CSR: 34.6
         modified CSR + gz: 29.8
+        modified CSR, Huffman on combined: 34.7
+        modified CSR, Huffman on combined + gz: 30.0
         bitvector indices: 35.7
         bitvector indices + gz: 29.1
 
@@ -69,6 +75,8 @@ test4: https://www.10xgenomics.com/datasets/20-k-1-1-mixture-of-human-hek-293-t-
     ours: (add 0.76 for gzipped barcodes + features since h5 has those)
         modified CSR: 84.2
         modified CSR + gz: 73.3
+        modified CSR, Huffman on combined: 85.6
+        modified CSR, Huffman on combined + gz: 74.1
         bitvector indices: 91.1
         bitvector indices + gz: 72.7
 
@@ -87,5 +95,7 @@ test5: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
     ours: (add 2.79 for gzipped barcodes + features since h5 has those)
         modified CSR: 213.9
         modified CSR + gz: 171.1
+        modified CSR, Huffman on combined: 214.8
+        modified CSR, Huffman on combined + gz: 171.7
         bitvector indices: 201.2
         bitvector indices + gz: 167.6

@@ -56,6 +56,8 @@ struct CompressedMatrix {
     col_coding_node_count: Box<[u32]>,
     value_coding_values: Box<[u32]>,
     value_coding_node_count: Box<[u32]>,
+    // coding_values: Box<[u32]>, // these two are for combined huffman
+    // coding_node_count: Box<[u32]>
 }
 
 fn read_matrix_mtx(mtx: String) -> ([usize; 2], Vec<[usize; 2]>, Vec<u32>) {
@@ -213,10 +215,12 @@ fn main() {
         let row_coding = Coding::from_frequencies(BitsPerFragment(1), row_vec_counts);
         let col_coding = Coding::from_frequencies(BitsPerFragment(1), col_vec_counts);
         let value_coding = Coding::from_frequencies(BitsPerFragment(1), value_vec_counts);
+        // let coding = Coding::from_frequencies(BitsPerFragment(1), combined_counts);
         
         let row_book = row_coding.reversed_codes_for_values();
         let col_book = col_coding.reversed_codes_for_values();
         let values_book = value_coding.reversed_codes_for_values();
+        // let book = coding.reversed_codes_for_values();
         
         let mut row_buffer = BitVec::new();
         for r in &row_counts {
@@ -265,6 +269,8 @@ fn main() {
             col_coding_node_count: col_coding.internal_nodes_count,
             value_coding_values: value_coding.values,
             value_coding_node_count: value_coding.internal_nodes_count,
+            // coding_values: coding.values,
+            // coding_node_count: coding.internal_nodes_count
         };
 
         let output_dir = arg2.unwrap();
@@ -310,6 +316,8 @@ fn main() {
         let row_coding2 = Coding {
             values: compressed_matrix2.row_coding_values,
             internal_nodes_count: compressed_matrix2.row_coding_node_count,
+            // values: compressed_matrix2.coding_values,
+            // internal_nodes_count: compressed_matrix2.coding_node_count,
             degree: BitsPerFragment(1)
         };
         let mut row_decoder = row_coding2.decoder();
