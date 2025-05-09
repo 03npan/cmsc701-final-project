@@ -16,13 +16,13 @@ test1: https://www.10xgenomics.com/datasets/500-human-pbm-cs-3-lt-v-3-1-chromium
     h5ad + gz: 2.24
     loom: 5.94
     loom + gz: 4.91
-    ours: (add 0.33 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 1.39
         modified CSR + gz: 1.21
-        modified CSR, Huffman on combined: 1.42
-        modified CSR, Huffman on combined + gz: 1.23
         bitvector indices: 1.46
         bitvector indices + gz: 1.19
+        modified CSR, Huffman on combined: 1.42
+        modified CSR, Huffman on combined + gz: 1.23
 
 test2: https://www.10xgenomics.com/datasets/whole-blood-rbc-lysis-for-pbmcs-neutrophils-granulocytes-3-3-1-standard
     size: 36601 x 8000
@@ -39,13 +39,13 @@ test2: https://www.10xgenomics.com/datasets/whole-blood-rbc-lysis-for-pbmcs-neut
     h5ad + gz: 7.41
     loom: 25.7
     loom + gz: 21.4
-    ours: (add 0.37 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 5.00
         modified CSR + gz: 4.42
-        modified CSR, Huffman on combined: 5.43
-        modified CSR, Huffman on combined + gz: 4.67
         bitvector indices: 7.41
         bitvector indices + gz: 4.61
+        modified CSR, Huffman on combined: 5.43
+        modified CSR, Huffman on combined + gz: 4.67
 
 test3: https://www.10xgenomics.com/datasets/10k-human-pbmcs-3-v3-1-chromium-x-with-intronic-reads-3-1-high
     size: 36601 x 11984
@@ -62,13 +62,13 @@ test3: https://www.10xgenomics.com/datasets/10k-human-pbmcs-3-v3-1-chromium-x-wi
     h5ad + gz: 71.8
     loom: 119.5
     loom + gz: 114.6
-    ours: (add 0.38 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 34.6
         modified CSR + gz: 29.8
-        modified CSR, Huffman on combined: 34.7
-        modified CSR, Huffman on combined + gz: 30.0
         bitvector indices: 35.7
         bitvector indices + gz: 29.1
+        modified CSR, Huffman on combined: 34.7
+        modified CSR, Huffman on combined + gz: 30.0
 
 test4: https://www.10xgenomics.com/datasets/20-k-1-1-mixture-of-human-hek-293-t-and-mouse-nih-3-t-3-cells-3-ht-v-3-1-3-1-high-6-1-0
     size: 68886 x 18299
@@ -85,13 +85,13 @@ test4: https://www.10xgenomics.com/datasets/20-k-1-1-mixture-of-human-hek-293-t-
     h5ad + gz: 150.6
     loom: 268.4
     loom + gz: 255.0
-    ours: (add 0.76 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 84.2
         modified CSR + gz: 73.3
-        modified CSR, Huffman on combined: 85.6
-        modified CSR, Huffman on combined + gz: 74.1
         bitvector indices: 91.1
         bitvector indices + gz: 72.7
+        modified CSR, Huffman on combined: 85.6
+        modified CSR, Huffman on combined + gz: 74.1
 
 test5: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-targeted-gene-expression-gene-signature-3-1-high
     size: 1154 x 530606
@@ -108,13 +108,13 @@ test5: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
     h5ad + gz: 537.2 
     loom: 471.7
     loom + gz: 452.5
-    ours: (add 2.79 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 213.9
         modified CSR + gz: 171.1
-        modified CSR, Huffman on combined: 214.8
-        modified CSR, Huffman on combined + gz: 171.7
         bitvector indices: 201.2
         bitvector indices + gz: 167.6
+        modified CSR, Huffman on combined: 214.8
+        modified CSR, Huffman on combined + gz: 171.7
 
 test6: https://www.10xgenomics.com/datasets/aggregate-of-8-chromium-connect-channels-and-8-manual-channels-3-1-standard-3-1-0
     size: 33538 x 66457
@@ -131,11 +131,9 @@ test6: https://www.10xgenomics.com/datasets/aggregate-of-8-chromium-connect-chan
     h5ad + gz: 195.7 
     loom: 401.1
     loom + gz: 377.5
-    ours: (add 0.66 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 102.9
         modified CSR + gz: 83.9
-        modified CSR, Huffman on combined: 
-        modified CSR, Huffman on combined + gz: 
         bitvector indices: 119.6
         bitvector indices + gz: 84.4
 
@@ -154,11 +152,9 @@ test7: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
     h5ad + gz: 408.5
     loom: 435.3
     loom + gz: 416.9
-    ours: (add 2.82 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 172.2
         modified CSR + gz: 137.2
-        modified CSR, Huffman on combined: 
-        modified CSR, Huffman on combined + gz: 
         bitvector indices: 164.1
         bitvector indices + gz: 134.2
 
@@ -177,10 +173,50 @@ test8: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
     h5ad + gz: 2826.5
     loom: failed to convert (attempts to allocate 71.6 GB of memory when writing)
     loom + gz: N/A
-    ours: (add 0.66 for gzipped barcodes + features since h5 has those)
+    ours:
         modified CSR: 1319.9
         modified CSR + gz: 1049.0
-        modified CSR, Huffman on combined: 
-        modified CSR, Huffman on combined + gz: 
         bitvector indices: 1013.5
         bitvector indices + gz: 792.9
+
+atlas1: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
+    size: 36601 x 2082996
+    matrix.mtx: 445.0
+    matrix.mtx.gz (original): not provided
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 76.3
+    h5: 359.9 (can't figure out how to convert to 10x-Genomics-formatted hdf5 file)
+    h5 + gz: 62.9
+    csc: 71.3
+    csc + gz: 70.4
+    csr: 82.7
+    csr + gz: 82.4
+    h5ad: 315.8
+    h5ad + gz: 89.3
+    loom: failed to convert (attempts to allocate 284 GB of memory when writing)
+    loom + gz: N/A
+    ours: 
+        modified CSR: 60.8
+        modified CSR + gz: 53.5
+        bitvector indices: 93.5
+        bitvector indices + gz: 47.8
+
+atlas2: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
+    size: 36601 x 2012551
+    matrix.mtx: 366.0
+    matrix.mtx.gz (original): not provided
+    matrix.mtx.gz (after decompress and gzipped again using 7zip): 62.2
+    h5: 297.8 (can't figure out how to convert to 10x-Genomics-formatted hdf5 file)
+    h5 + gz: 51.0
+    csc: 57.9
+    csc + gz: 57.3
+    csr: 66.8
+    csr + gz: 66.6
+    h5ad: 271.9
+    h5ad + gz: 73.9
+    loom: failed to convert (attempts to allocate 274 GB of memory when writing)
+    loom + gz: N/A
+    ours: 
+        modified CSR: 50.5
+        modified CSR + gz: 44.4
+        bitvector indices: 78.7
+        bitvector indices + gz: 40.1

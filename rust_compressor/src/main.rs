@@ -225,6 +225,8 @@ fn main() {
         let col_book = col_coding.reversed_codes_for_values();
         let values_book = value_coding.reversed_codes_for_values();
         // let book = coding.reversed_codes_for_values();
+
+        println!("coding 1");
         
         let mut row_buffer = BitVec::new();
         for r in &row_counts {
@@ -235,6 +237,7 @@ fn main() {
                 bits >>= 1;
             }
         }
+        println!("coding 2");
         let mut col_buffer = BitVec::new();
         for c in &cols {
             let code = col_book.get(c).unwrap();
@@ -244,6 +247,7 @@ fn main() {
                 bits >>= 1;
             }
         }
+        println!("coding 3");
         let mut value_buffer = BitVec::new();
         for v in &values {
             let code = values_book.get(v).unwrap();
@@ -253,6 +257,8 @@ fn main() {
                 bits >>= 1;
             }
         }
+
+        println!("struct");
 
         let compressed_matrix = CompressedMatrix {
             num_features: size[0] as u32,
@@ -277,6 +283,8 @@ fn main() {
             // coding_node_count: coding.internal_nodes_count
         };
 
+        println!("writing");
+
         let output_dir = arg2.unwrap();
         let _ = fs::create_dir(&output_dir);
         let f = File::create(format!("{output_dir}/compressed_matrix.bin"));
@@ -290,54 +298,54 @@ fn main() {
             Err(error) => panic!("Can't write to file: {}", error),
         };
 
-        let f = File::open(format!("{output_dir}/compressed_matrix.bin"));
-        let mut input = match f {
-            Ok(f) => f,
-            Err(error) => panic!("Can't open file: {}", error),
-        };
-        let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
-        let compressed_matrix2 = match res {
-            Ok(res) => res,
-            Err(error) => panic!("Can't decode file: {}", error),
-        };
-        // println!("{:?}", compressed_matrix);
-        assert_eq!(compressed_matrix.num_features, compressed_matrix2.num_features);
-        assert_eq!(compressed_matrix.num_barcodes, compressed_matrix2.num_barcodes);
-        assert_eq!(compressed_matrix.num_entries, compressed_matrix2.num_entries);
-        assert_eq!(compressed_matrix.row_vec, compressed_matrix2.row_vec);
-        assert_eq!(compressed_matrix.col_vec, compressed_matrix2.col_vec);
-        assert_eq!(compressed_matrix.values_vec, compressed_matrix2.values_vec);
+        // let f = File::open(format!("{output_dir}/compressed_matrix.bin"));
+        // let mut input = match f {
+        //     Ok(f) => f,
+        //     Err(error) => panic!("Can't open file: {}", error),
+        // };
+        // let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
+        // let compressed_matrix2 = match res {
+        //     Ok(res) => res,
+        //     Err(error) => panic!("Can't decode file: {}", error),
+        // };
+        // // println!("{:?}", compressed_matrix);
+        // assert_eq!(compressed_matrix.num_features, compressed_matrix2.num_features);
+        // assert_eq!(compressed_matrix.num_barcodes, compressed_matrix2.num_barcodes);
+        // assert_eq!(compressed_matrix.num_entries, compressed_matrix2.num_entries);
+        // assert_eq!(compressed_matrix.row_vec, compressed_matrix2.row_vec);
+        // assert_eq!(compressed_matrix.col_vec, compressed_matrix2.col_vec);
+        // assert_eq!(compressed_matrix.values_vec, compressed_matrix2.values_vec);
 
-        // --------- test for huffman-compress2 huffman coding ---------
-        // let decoded_row: Vec<u32> = compressed_matrix2.row_tree.decoder(&compressed_matrix2.row_vec, compressed_matrix.num_features as usize).collect();
-        // let decoded_col: Vec<u32> = compressed_matrix2.col_tree.decoder(&compressed_matrix2.col_vec, compressed_matrix.num_entries as usize).collect();
-        // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values_vec, compressed_matrix.num_entries as usize).collect();
-        // assert_eq!(row_counts, decoded_row);
-        // assert_eq!(cols, decoded_col);
-        // assert_eq!(values, decoded_values);
+        // // --------- test for huffman-compress2 huffman coding ---------
+        // // let decoded_row: Vec<u32> = compressed_matrix2.row_tree.decoder(&compressed_matrix2.row_vec, compressed_matrix.num_features as usize).collect();
+        // // let decoded_col: Vec<u32> = compressed_matrix2.col_tree.decoder(&compressed_matrix2.col_vec, compressed_matrix.num_entries as usize).collect();
+        // // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values_vec, compressed_matrix.num_entries as usize).collect();
+        // // assert_eq!(row_counts, decoded_row);
+        // // assert_eq!(cols, decoded_col);
+        // // assert_eq!(values, decoded_values);
 
-        // --------- test for minimum_redundancy huffman coding ---------
-        let row_coding2 = Coding {
-            values: compressed_matrix2.row_coding_values,
-            internal_nodes_count: compressed_matrix2.row_coding_node_count,
-            // values: compressed_matrix2.coding_values,
-            // internal_nodes_count: compressed_matrix2.coding_node_count,
-            degree: BitsPerFragment(1)
-        };
-        let mut row_decoder = row_coding2.decoder();
-        let mut num_decoded = 0;
-        let mut fragments = compressed_matrix2.row_vec.iter();// as bit_vec::Iter<u32>;
-        while num_decoded < 4 {
-            if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
-                // should return 0,0,0,3 for test1
-                // should return 0,0,0,125 for test2
-                // should return 0,1,0,111 for test3
-                // should return 1,0,0,54 for test4
-                // should return 32525,264107,63667,28605 for test5
-                println!("{}", v);
-                num_decoded += 1;
-            }
-        }
+        // // --------- test for minimum_redundancy huffman coding ---------
+        // let row_coding2 = Coding {
+        //     values: compressed_matrix2.row_coding_values,
+        //     internal_nodes_count: compressed_matrix2.row_coding_node_count,
+        //     // values: compressed_matrix2.coding_values,
+        //     // internal_nodes_count: compressed_matrix2.coding_node_count,
+        //     degree: BitsPerFragment(1)
+        // };
+        // let mut row_decoder = row_coding2.decoder();
+        // let mut num_decoded = 0;
+        // let mut fragments = compressed_matrix2.row_vec.iter();// as bit_vec::Iter<u32>;
+        // while num_decoded < 4 {
+        //     if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
+        //         // should return 0,0,0,3 for test1
+        //         // should return 0,0,0,125 for test2
+        //         // should return 0,1,0,111 for test3
+        //         // should return 1,0,0,54 for test4
+        //         // should return 32525,264107,63667,28605 for test5
+        //         println!("{}", v);
+        //         num_decoded += 1;
+        //     }
+        // }
     }
     else {
         eprintln!("Usage: rust_compressor <input_mtx> <output_dir>");

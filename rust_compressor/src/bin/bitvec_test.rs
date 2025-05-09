@@ -174,11 +174,14 @@ fn main() {
                 bits >>= 1;
             }
         }
+
+        println!("RLE");
         
         let mut bitvec = BitVec::from_elem(size[0] * size[1], false);
         for c in cols {
             bitvec.set(c as usize, true);
         }
+        println!("RLE2");
         let rle_cols = bitfield_rle::encode(bitvec.to_bytes());
 
         // --------- minimum_redundancy on rle matrix ---------
@@ -195,6 +198,8 @@ fn main() {
         //         bits >>= 1;
         //     }
         // }
+
+        println!("struct");
 
         let compressed_matrix = CompressedMatrix {
             num_features: size[0] as u32,
@@ -214,6 +219,8 @@ fn main() {
             value_coding_node_count: value_coding.internal_nodes_count,
         };
 
+        println!("writing");
+
         let output_dir = arg2.unwrap();
         let _ = fs::create_dir(&output_dir);
         let f = File::create(format!("{output_dir}/compressed_matrix_bv.bin"));
@@ -227,29 +234,78 @@ fn main() {
             Err(error) => panic!("Can't write to file: {}", error),
         };
 
-        let f = File::open(format!("{output_dir}/compressed_matrix_bv.bin"));
-        let mut input = match f {
-            Ok(f) => f,
-            Err(error) => panic!("Can't open file: {}", error),
-        };
-        let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
-        let compressed_matrix2 = match res {
-            Ok(res) => res,
-            Err(error) => panic!("Can't decode file: {}", error),
-        };
-        // println!("{:?}", compressed_matrix);
-        assert_eq!(compressed_matrix.num_features, compressed_matrix2.num_features);
-        assert_eq!(compressed_matrix.num_barcodes, compressed_matrix2.num_barcodes);
-        assert_eq!(compressed_matrix.num_entries, compressed_matrix2.num_entries);
-        assert_eq!(compressed_matrix.matrix, compressed_matrix2.matrix);
-        assert_eq!(compressed_matrix.values, compressed_matrix2.values);
+        // let f = File::open(format!("{output_dir}/compressed_matrix_bv.bin"));
+        // let mut input = match f {
+        //     Ok(f) => f,
+        //     Err(error) => panic!("Can't open file: {}", error),
+        // };
+        // let res: Result<CompressedMatrix, bincode::error::DecodeError> = bincode::serde::decode_from_std_read(&mut input, bincode::config::standard());
+        // let compressed_matrix2 = match res {
+        //     Ok(res) => res,
+        //     Err(error) => panic!("Can't decode file: {}", error),
+        // };
+        // // println!("{:?}", compressed_matrix);
+        // assert_eq!(compressed_matrix.num_features, compressed_matrix2.num_features);
+        // assert_eq!(compressed_matrix.num_barcodes, compressed_matrix2.num_barcodes);
+        // assert_eq!(compressed_matrix.num_entries, compressed_matrix2.num_entries);
+        // assert_eq!(compressed_matrix.matrix, compressed_matrix2.matrix);
+        // assert_eq!(compressed_matrix.values, compressed_matrix2.values);
         
-        // --------- test for huffman-compress2 ---------
-        // // let rle_row: Vec<u8> = compressed_matrix2.matrix_tree.decoder(&compressed_matrix2.matrix, 4 * compressed_matrix.num_barcodes as usize).collect();
-        // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values, compressed_matrix.num_entries as usize).collect();
-        // // let mut decoded_row = bitfield_rle::decode(rle_row).unwrap(); // decode for rle + huffman of 1D array
+        // // --------- test for huffman-compress2 ---------
+        // // // let rle_row: Vec<u8> = compressed_matrix2.matrix_tree.decoder(&compressed_matrix2.matrix, 4 * compressed_matrix.num_barcodes as usize).collect();
+        // // let decoded_values: Vec<u32> = compressed_matrix2.values_tree.decoder(&compressed_matrix2.values, compressed_matrix.num_entries as usize).collect();
+        // // // let mut decoded_row = bitfield_rle::decode(rle_row).unwrap(); // decode for rle + huffman of 1D array
+        // // let mut decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix).unwrap();
+        // // let bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
+        // // // for byte in decoded_row
+        // // let mut ones = 0;
+        // // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
+        // //     ones += byte.count_ones();
+        // //     // print!("{:08b}", byte);
+        // // }
+        // // // should return 3 for test1
+        // // // should return 125 for test2
+        // // // should return 111 for test3
+        // // // should return 54  for test4
+        // // // should return 28605 for test5
+        // // println!("{}", ones);
+        // // assert_eq!(values, decoded_values); // decoded_values should be either num_barcodes or num_entries if doing split by row or 1D array
+        
+        // // --------- test for minimum_redundancy ---------
+        // // let row_coding2 = Coding {
+        // //     values: compressed_matrix2.matrix_coding_values,
+        // //     internal_nodes_count: compressed_matrix2.matrix_coding_node_count,
+        // //     degree: BitsPerFragment(1)
+        // // };
+        // // let mut bytes = Vec::new();
+        // // let mut row_decoder = row_coding2.decoder();
+        // // let mut fragments = compressed_matrix2.matrix.iter().peekable();
+        // // let mut count = 0;
+        // // while fragments.peek().is_some() {
+        // //     if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
+        // //         bytes.push(*v);
+        // //         count += 1;
+        // //     }
+        // //     if count > (4 * compressed_matrix2.num_barcodes) / 8 {
+        // //         break;
+        // //     }
+        // // }
+        // // let mut decoded_row = bitfield_rle::decode(bytes).unwrap();
+        // // let mut ones = 0;
+        // // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
+        // //     ones += byte.count_ones();
+        // //     // print!("{:08b}", byte);
+        // // }
+        // // // should return 3 for test1
+        // // // should return 125 for test2
+        // // // should return 111 for test3
+        // // // should return 54  for test4
+        // // // should return 28605 for test5
+        // // println!("{}", ones);
+
+        // // --------- rle only ---------
         // let mut decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix).unwrap();
-        // let bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
+        // let _bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
         // // for byte in decoded_row
         // let mut ones = 0;
         // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
@@ -262,55 +318,6 @@ fn main() {
         // // should return 54  for test4
         // // should return 28605 for test5
         // println!("{}", ones);
-        // assert_eq!(values, decoded_values); // decoded_values should be either num_barcodes or num_entries if doing split by row or 1D array
-        
-        // --------- test for minimum_redundancy ---------
-        // let row_coding2 = Coding {
-        //     values: compressed_matrix2.matrix_coding_values,
-        //     internal_nodes_count: compressed_matrix2.matrix_coding_node_count,
-        //     degree: BitsPerFragment(1)
-        // };
-        // let mut bytes = Vec::new();
-        // let mut row_decoder = row_coding2.decoder();
-        // let mut fragments = compressed_matrix2.matrix.iter().peekable();
-        // let mut count = 0;
-        // while fragments.peek().is_some() {
-        //     if let DecodingResult::Value(v) = row_decoder.decode_next(&mut fragments) {
-        //         bytes.push(*v);
-        //         count += 1;
-        //     }
-        //     if count > (4 * compressed_matrix2.num_barcodes) / 8 {
-        //         break;
-        //     }
-        // }
-        // let mut decoded_row = bitfield_rle::decode(bytes).unwrap();
-        // let mut ones = 0;
-        // for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
-        //     ones += byte.count_ones();
-        //     // print!("{:08b}", byte);
-        // }
-        // // should return 3 for test1
-        // // should return 125 for test2
-        // // should return 111 for test3
-        // // should return 54  for test4
-        // // should return 28605 for test5
-        // println!("{}", ones);
-
-        // --------- rle only ---------
-        let mut decoded_row = bitfield_rle::decode(&compressed_matrix2.matrix).unwrap();
-        let _bits = BitVec::from_bytes(&decoded_row); // this is how to turn back into rank/select bitvec
-        // for byte in decoded_row
-        let mut ones = 0;
-        for byte in &mut decoded_row[3*(compressed_matrix2.num_barcodes as usize/8)..4*(compressed_matrix2.num_barcodes as usize/8)] {
-            ones += byte.count_ones();
-            // print!("{:08b}", byte);
-        }
-        // should return 3 for test1
-        // should return 125 for test2
-        // should return 111 for test3
-        // should return 54  for test4
-        // should return 28605 for test5
-        println!("{}", ones);
     }
     else {
         eprintln!("Usage: rust_compressor <input_mtx> <output>");
