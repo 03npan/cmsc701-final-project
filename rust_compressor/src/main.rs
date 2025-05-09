@@ -97,16 +97,15 @@ fn main() {
         // now we have a sparse NxM matrix loaded - begin compressing
 
         let mut max_row_count = 0;
-        let mut max_col_delta = 0;
+        // let mut max_col = 0;
         let mut max_value = 0;
         // let mut max_row_count_delta = 0;
-        // let mut max_col_delta = 0;
+        let mut max_col_delta = 0;
         // let mut max_value_delta = 0;
         let mut row_counts: Vec<u32> = Vec::new();
         let mut cols: Vec<u32> = Vec::new();
         let mut values: Vec<u32> = Vec::new();
         // let mut last_row_count = 0;
-        // let mut last_col = 0;
         // let mut last_value = 0;
 
         // let mut last_col = 0; // for 2-array alg - seems pretty close to 3-array alg
@@ -135,6 +134,8 @@ fn main() {
                 let num_empty_rows_between = row as i32 - last_row - 1;
                 for _ in 0..num_empty_rows_between {
                     row_counts.push(0); // account for empty rows
+                    // row_counts.push(0 - last_row_count); // account for delta of empty rows
+                    // last_row_count = 0;
                 }
                 last_row = row as i32;
                 row_count = 1;
@@ -146,7 +147,6 @@ fn main() {
 
             // relative column nums - seems to be only delta encoding that has significant benefits
             // let col_delta = ((col_num + (_row_num * matrix[0].len() as usize)) - last_col) as u32;  // for 2-array alg
-            // let col_delta = col_num as i32 - last_col as i32; // if not resetting per row
             let col_delta = col - last_col;
             if col_delta > max_col_delta {
                 max_col_delta = col_delta;
@@ -154,6 +154,10 @@ fn main() {
             cols.push(col_delta as u32);
             last_col = col;
             // last_col = col_num + (_row_num * matrix[0].len() as usize); // for 2-array alg
+            // cols.push(col as u32);
+            // if col > max_col {
+            //     max_col = col;
+            // }
             values.push(value);
             if value > max_value {
                 max_value = value;
