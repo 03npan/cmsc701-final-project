@@ -136,6 +136,8 @@ test6: https://www.10xgenomics.com/datasets/aggregate-of-8-chromium-connect-chan
         modified CSR + gz: 83.9
         bitvector indices: 119.6
         bitvector indices + gz: 84.4
+        modified CSR, Huffman on combined: 104.9
+        modified CSR, Huffman on combined + gz: 86.0
 
 test7: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-targeted-gene-expression-pan-cancer-3-1-high
     size: 1265 x 534582
@@ -157,6 +159,8 @@ test7: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
         modified CSR + gz: 137.2
         bitvector indices: 164.1
         bitvector indices + gz: 134.2
+        modified CSR, Huffman on combined: 173.3
+        modified CSR, Huffman on combined + gz: 136.9
 
 test8: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-3-ht-v3-1-3-1-high
     size: 36613 x 525251
@@ -178,6 +182,8 @@ test8: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
         modified CSR + gz: 1049.0
         bitvector indices: 1013.5
         bitvector indices + gz: 792.9
+        modified CSR, Huffman on combined: 1329.2
+        modified CSR, Huffman on combined + gz: 1051.7
 
 atlas1: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
     size: 36601 x 2082996
@@ -199,6 +205,8 @@ atlas1: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5
         modified CSR + gz: 53.5
         bitvector indices: 93.5
         bitvector indices + gz: 47.8
+        modified CSR, Huffman on combined: 68.4
+        modified CSR, Huffman on combined + gz: 57.7
 
 atlas2: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
     size: 36601 x 2012551
@@ -220,3 +228,5 @@ atlas2: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5
         modified CSR + gz: 44.4
         bitvector indices: 78.7
         bitvector indices + gz: 40.1
+        modified CSR, Huffman on combined: 57.0
+        modified CSR, Huffman on combined + gz: 47.8
