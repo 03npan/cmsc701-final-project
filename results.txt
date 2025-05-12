@@ -3,6 +3,7 @@ size is # features x # barcodes
 
 test1: https://www.10xgenomics.com/datasets/500-human-pbm-cs-3-lt-v-3-1-chromium-x-3-1-low-6-1-0
     size: 36601 x 587
+    non-zero values: 1611279
     matrix.mtx: 17.8
     matrix.mtx.gz (original): 5.68
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 3.66
@@ -26,6 +27,7 @@ test1: https://www.10xgenomics.com/datasets/500-human-pbm-cs-3-lt-v-3-1-chromium
 
 test2: https://www.10xgenomics.com/datasets/whole-blood-rbc-lysis-for-pbmcs-neutrophils-granulocytes-3-3-1-standard
     size: 36601 x 8000
+    non-zero values: 4243843
     matrix.mtx: 50.9
     matrix.mtx.gz (original): 15.8
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 10.4
@@ -49,6 +51,7 @@ test2: https://www.10xgenomics.com/datasets/whole-blood-rbc-lysis-for-pbmcs-neut
 
 test3: https://www.10xgenomics.com/datasets/10k-human-pbmcs-3-v3-1-chromium-x-with-intronic-reads-3-1-high
     size: 36601 x 11984
+    non-zero values: 41282695
     matrix.mtx: 504.2
     matrix.mtx.gz (original): 147.9
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 97.3
@@ -72,6 +75,7 @@ test3: https://www.10xgenomics.com/datasets/10k-human-pbmcs-3-v3-1-chromium-x-wi
 
 test4: https://www.10xgenomics.com/datasets/20-k-1-1-mixture-of-human-hek-293-t-and-mouse-nih-3-t-3-cells-3-ht-v-3-1-3-1-high-6-1-0
     size: 68886 x 18299
+    non-zero values: 89128968
     matrix.mtx: 1129.6
     matrix.mtx.gz (original): 315.2
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 206.8
@@ -95,6 +99,7 @@ test4: https://www.10xgenomics.com/datasets/20-k-1-1-mixture-of-human-hek-293-t-
 
 test5: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-targeted-gene-expression-gene-signature-3-1-high
     size: 1154 x 530606
+    non-zero values: 302535134
     matrix.mtx: 3730.7
     matrix.mtx.gz (original): 648.9
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 648.9
@@ -118,6 +123,7 @@ test5: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
 
 test6: https://www.10xgenomics.com/datasets/aggregate-of-8-chromium-connect-channels-and-8-manual-channels-3-1-standard-3-1-0
     size: 33538 x 66457
+    non-zero values: 116625860
     matrix.mtx: 1505.5
     matrix.mtx.gz (original): 427.2
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 264.6
@@ -141,6 +147,7 @@ test6: https://www.10xgenomics.com/datasets/aggregate-of-8-chromium-connect-chan
 
 test7: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-targeted-gene-expression-pan-cancer-3-1-high
     size: 1265 x 534582
+    non-zero values: 227381326
     matrix.mtx: 2828.2
     matrix.mtx.gz (original): 780.3
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 517.7
@@ -164,6 +171,7 @@ test7: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
 
 test8: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1975-and-a549-cells-3-ht-v3-1-3-1-high
     size: 36613 x 525251
+    non-zero values: 1671598065
     matrix.mtx: 23207.9
     matrix.mtx.gz (original): 5991.0
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 3783.4
@@ -187,6 +195,7 @@ test8: https://www.10xgenomics.com/datasets/full-chip-mixture-of-drug-treated-h1
 
 atlas1: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
     size: 36601 x 2082996
+    non-zero values: 30749325
     matrix.mtx: 445.0
     matrix.mtx.gz (original): not provided
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 76.3
@@ -210,6 +219,7 @@ atlas1: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5
 
 atlas2: https://explore.data.humancellatlas.org/projects/64809a52-f703-4aec-b3a5-eca808a971d0/project-matrices
     size: 36601 x 2012551
+    non-zero values: 25350157
     matrix.mtx: 366.0
     matrix.mtx.gz (original): not provided
     matrix.mtx.gz (after decompress and gzipped again using 7zip): 62.2
