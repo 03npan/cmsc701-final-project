@@ -10,20 +10,13 @@ sparse_matrix = csc_matrix(matrix)
 
 os.makedirs(f"{matrix_dir}/other_formats", exist_ok=True)
 
-# Specify the file path
 file_path = f'{matrix_dir}/other_formats/atlas{dataset_num}.h5'
 
-# Open the HDF5 file in write mode
 with h5py.File(file_path, 'w') as hf:
-    # Create a group for the sparse matrix
     group = hf.create_group('matrix')
-
-    # Store the sparse matrix data
     group.create_dataset('data', data=sparse_matrix.data)
     group.create_dataset('indices', data=sparse_matrix.indices)
     group.create_dataset('indptr', data=sparse_matrix.indptr)
-
-    # Store the shape and format of the matrix as attributes
     group.attrs['shape'] = sparse_matrix.shape
     group.attrs['format'] = 'csr'
 
