@@ -12,16 +12,9 @@ use matrix_market_rs::MtxData;
 // https://crates.io/crates/matrix-market-rs
 // note that we will be reading row-major order while the original
 // matrix.mtx is column-major order
-// NOTE: we are using dense matrix but should be using sparse as input
 // new idea: use rank & select enabled bitvectors to store column indices
     // can do by row (needs per row store of values) or for entire 1D version of matrix
 // will need run length encoding and/or Huffman encoding of bytes to compress well
-// bitvec
-    // https://crates.io/crates/bitm
-    // https://crates.io/crates/rsdict
-    // https://crates.io/crates/vers-vecs - has serde
-    // https://crates.io/crates/sux
-    // https://crates.io/crates/succinct
 // huffman coding:
     // https://crates.io/crates/minimum_redundancy
         // 1.83 mb with rle then huffman on split by row
@@ -35,13 +28,7 @@ use matrix_market_rs::MtxData;
         // 1.45 mb with rle then huffman on 1D matrix
 // rle:
     // https://crates.io/crates/bitfield-rle
-// other compression:
-    // https://crates.io/crates/arcode
-    // https://crates.io/crates/lz4_flex
-    // https://crates.io/crates/rust-lzma
-    // https://docs.rs/xz2/0.1.7/xz2/
 
-// #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[derive(Serialize, Deserialize, Debug)]
 struct CompressedMatrix {
     num_features: u32,
@@ -111,10 +98,6 @@ fn main() {
             let value = mtx_values[idx];
 
             cols.push((col + (row * size[1])) as u32);
-            // col_indices.push(col_num as u32);
-            // last_col = col_num;
-            // last_col = col_num + (_row_num * compressed_matrix.num_barcodes as usize); // for 2-array alg
-            // values_in_row.push(*value);
             values.push(value);
             if value > max_value {
                 max_value = value;
@@ -131,7 +114,6 @@ fn main() {
         // println!("len col: {}", cols.len());
         // println!("len val: {}", values.len());
 
-        // let value_counts = values.clone().into_iter().flatten().collect_vec().iter().copied().counts();
         let value_counts = values.iter().copied().counts();
         println!("value_vec_counts: {:?}", value_counts.values().sorted().len());
 

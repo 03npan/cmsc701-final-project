@@ -35,7 +35,6 @@ use matrix_market_rs::MtxData;
                     // 1.43 mb for CSR
                     // 1.47 mb for 1D array
 
-// #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[derive(Serialize, Deserialize, Debug)]
 struct CompressedMatrix {
     num_features: u32,
@@ -108,8 +107,6 @@ fn main() {
         // let mut last_row_count = 0;
         // let mut last_value = 0;
 
-        // let mut last_col = 0; // for 2-array alg - seems pretty close to 3-array alg
-
         let mut row_count = 0;
         let mut last_row: i32 = -1;
         let mut last_col = 0;
@@ -146,14 +143,12 @@ fn main() {
             }
 
             // relative column nums - seems to be only delta encoding that has significant benefits
-            // let col_delta = ((col_num + (_row_num * matrix[0].len() as usize)) - last_col) as u32;  // for 2-array alg
             let col_delta = col - last_col;
             if col_delta > max_col_delta {
                 max_col_delta = col_delta;
             }
             cols.push(col_delta as u32);
             last_col = col;
-            // last_col = col_num + (_row_num * matrix[0].len() as usize); // for 2-array alg
             // cols.push(col as u32);
             // if col > max_col {
             //     max_col = col;
