@@ -76,14 +76,6 @@ public class compressor {
         deltaEncodedIndexArrayList.add(indexArrayList.get(0));
         ArrayList<Integer> deltaEncodedValueArrayList = new ArrayList<>(); 
         deltaEncodedValueArrayList.add(valuesArrayList.get(0));
-        // for (int i = 1; i < indexArrayList.size(); i++){
-        //     currIndexValue = indexArrayList.get(i) - indexArrayList.get(i-1);
-        //     deltaEncodedIndexArrayList.add(currIndexValue);
-        //     // if (currIndexValue > largestIndex){
-        //     //     largestIndex = currIndexValue;
-        //     // }
-        // }
-        
         for (int i = 1; i < valuesArrayList.size(); i++) {
             currValueValue = valuesArrayList.get(i) - valuesArrayList.get(i-1);
             deltaEncodedValueArrayList.add(currValueValue);
@@ -120,10 +112,6 @@ public class compressor {
         PackedIntVectorUsingBitSet indexPacked = new PackedIntVectorUsingBitSet(
             deltaEncodedIndexArrayList.size(), indexBitWidth
         );
-        // for (int i = 0; i < deltaEncodedIndexArrayList.size(); i++) {
-        //     indexPacked.set(i, deltaEncodedIndexArrayList.get(i));
-        // }
-        // output.write(indexPacked.getBitSet().toByteArray());
         
         PackedIntVectorUsingBitSet valuePacked = new PackedIntVectorUsingBitSet(
             deltaEncodedValueArrayList.size(), valueBitWidth
